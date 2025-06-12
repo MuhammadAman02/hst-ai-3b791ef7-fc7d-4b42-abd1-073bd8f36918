@@ -1,48 +1,143 @@
 # 🎨 Color Harmony - AI Skin Tone & Color Analysis
 
-A sophisticated web application that uses computer vision and color science to analyze skin tones from photos and provide personalized color recommendations. Built with NiceGUI, OpenCV, and advanced machine learning techniques.
+A sophisticated AI-powered application that analyzes skin tones and provides personalized color recommendations. Built with Python, NiceGUI, and advanced computer vision techniques.
 
 ## ✨ Features
 
-- **📸 Smart Image Upload**: Drag-and-drop interface with support for JPG, PNG, and WebP formats
-- **🔍 AI Skin Tone Analysis**: Advanced computer vision algorithms to detect and classify skin tones
-- **🎨 Personalized Color Recommendations**: Curated color palettes based on your unique skin tone and undertones
-- **🎛️ Real-time Skin Tone Adjustment**: Interactive controls to fine-tune brightness, warmth, saturation, and hue
-- **🌈 Color Harmony Science**: Professional color theory applied to fashion and styling recommendations
-- **📱 Responsive Design**: Beautiful, modern interface that works on desktop and mobile devices
-- **⚡ Fast Processing**: Optimized algorithms for quick analysis and real-time adjustments
+### 🔍 **AI-Powered Skin Tone Analysis**
+- Advanced computer vision using OpenCV and YCrCb color space
+- Face detection for accurate skin tone extraction
+- Undertone classification (warm, cool, neutral)
+- Confidence scoring for analysis reliability
+
+### 🎨 **Personalized Color Recommendations**
+- Curated color palettes based on color harmony theory
+- Seasonal color analysis (Spring, Summer, Autumn, Winter)
+- Outfit color combination suggestions
+- Colors to enhance vs. colors to avoid
+
+### 🎛️ **Real-Time Skin Tone Adjustment**
+- Interactive controls for brightness, warmth, saturation, and hue
+- Preset adjustments for quick modifications
+- Live preview of changes
+- Re-analysis with adjusted skin tone
+
+### 💎 **Professional UI/UX**
+- Modern gradient design with glass-morphism effects
+- Responsive layout for all devices
+- Smooth animations and transitions
+- Accessibility-compliant interface
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-
-- Python 3.10 or higher
+- Python 3.12+
 - pip package manager
 
 ### Installation
 
-1. **Clone the repository**:
+1. **Clone the repository**
    ```bash
    git clone <repository-url>
    cd color-harmony
    ```
 
-2. **Install dependencies**:
+2. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Run the application**:
+3. **Run the application**
    ```bash
    python main.py
    ```
 
-4. **Open your browser** and navigate to `http://localhost:8000`
+4. **Open your browser**
+   Navigate to `http://localhost:8000`
+
+## 🏗️ Architecture
+
+### **Technology Stack**
+- **Frontend**: NiceGUI (Python-based web UI)
+- **Backend**: Python with FastAPI integration
+- **Computer Vision**: OpenCV, NumPy, scikit-learn
+- **Image Processing**: Pillow, scipy
+- **Configuration**: Pydantic Settings
+- **Deployment**: Docker + Fly.io
+
+### **Project Structure**
+```
+color-harmony/
+├── main.py                 # Application entry point
+├── requirements.txt        # Python dependencies
+├── dockerfile             # Container configuration
+├── fly.toml               # Deployment configuration
+├── .env                   # Environment variables
+├── app/
+│   ├── main.py            # Main UI pages
+│   ├── config.py          # Application configuration
+│   ├── components/        # UI components
+│   │   ├── image_upload.py
+│   │   ├── skin_tone_analysis.py
+│   │   ├── color_recommendations.py
+│   │   └── skin_tone_adjuster.py
+│   └── services/          # Business logic
+│       ├── color_service.py
+│       └── image_service.py
+└── uploads/               # Uploaded images storage
+```
+
+## 🎯 How It Works
+
+### **1. Image Upload**
+- Drag-and-drop or click to upload
+- Supports JPG, PNG, WebP formats
+- Automatic file validation and resizing
+- Secure file handling
+
+### **2. Skin Tone Analysis**
+- **Face Detection**: Locates facial regions for accurate analysis
+- **Skin Pixel Extraction**: Uses YCrCb color space for skin detection
+- **Color Clustering**: K-means algorithm finds dominant skin colors
+- **Undertone Classification**: Analyzes color ratios to determine warm/cool/neutral
+
+### **3. Color Recommendations**
+- **Color Harmony Theory**: Applies professional color matching principles
+- **Seasonal Analysis**: Maps skin tones to seasonal color palettes
+- **Confidence Scoring**: Provides reliability metrics for each recommendation
+- **Outfit Suggestions**: Creates harmonious color combinations
+
+### **4. Skin Tone Adjustment**
+- **Real-Time Processing**: Instant preview of adjustments
+- **Multiple Parameters**: Brightness, warmth, saturation, hue shift
+- **Preset Options**: Quick adjustments for common preferences
+- **Re-Analysis**: Updates recommendations based on adjusted skin tone
+
+## 🔧 Configuration
+
+### **Environment Variables**
+```bash
+# Application Settings
+APP_NAME=Color Harmony - AI Skin Tone Analysis
+DEBUG=false
+
+# Server Settings
+HOST=0.0.0.0
+PORT=8000
+
+# File Upload Settings
+MAX_FILE_SIZE=10485760
+ALLOWED_EXTENSIONS=.jpg,.jpeg,.png,.webp
+
+# Image Processing Settings
+MAX_IMAGE_WIDTH=1920
+MAX_IMAGE_HEIGHT=1080
+CONFIDENCE_THRESHOLD=0.7
+```
 
 ## 🐳 Docker Deployment
 
-### Build and run with Docker:
-
+### **Build and Run**
 ```bash
 # Build the image
 docker build -t color-harmony .
@@ -51,167 +146,86 @@ docker build -t color-harmony .
 docker run -p 8000:8000 color-harmony
 ```
 
-## ☁️ Deploy to Fly.io
+### **Fly.io Deployment**
+```bash
+# Install Fly CLI
+curl -L https://fly.io/install.sh | sh
 
-1. **Install Fly CLI** and authenticate:
-   ```bash
-   curl -L https://fly.io/install.sh | sh
-   flyctl auth login
-   ```
+# Deploy to Fly.io
+fly deploy
+```
 
-2. **Deploy the application**:
-   ```bash
-   flyctl deploy
-   ```
+## 🧪 API Endpoints
 
-3. **Open your deployed app**:
-   ```bash
-   flyctl open
-   ```
+### **Health Check**
+```
+GET /health
+```
+Returns application health status
 
-## 🎯 How It Works
-
-### 1. Image Analysis
-- Upload a clear photo of yourself or someone else
-- The AI detects skin pixels using advanced color space analysis
-- Face detection algorithms focus on the most relevant areas
-
-### 2. Skin Tone Classification
-- Analyzes dominant colors using K-means clustering
-- Classifies skin tone into categories (Very Light to Very Dark)
-- Determines undertones (Warm, Cool, or Neutral)
-
-### 3. Color Recommendations
-- Applies professional color theory principles
-- Generates personalized color palettes
-- Provides seasonal color analysis
-- Suggests outfit combinations
-
-### 4. Real-time Adjustments
-- Interactive sliders for fine-tuning
-- Preset adjustments for common preferences
-- Live preview of changes
+### **Main Application**
+```
+GET /
+```
+Main application interface
 
 ## 🎨 Color Science
 
-The application uses advanced color science principles:
+### **Skin Tone Categories**
+- **Very Light**: Delicate coloring, works with soft pastels
+- **Light**: Luminous quality, versatile with many colors
+- **Light-Medium**: Balanced tone, wide color range
+- **Medium**: Natural warmth, complements earth tones
+- **Medium-Dark**: Rich depth, stunning with bold colors
+- **Dark**: Beautiful richness, shines with vibrant colors
+- **Very Dark**: Striking depth, magnificent with bright colors
 
-- **YCrCb Color Space**: For accurate skin detection
-- **HSV Transformations**: For hue and saturation adjustments
-- **Color Temperature**: For warm/cool tone modifications
-- **K-means Clustering**: For dominant color extraction
-- **Euclidean Distance**: For color matching and classification
+### **Undertone Analysis**
+- **Warm**: Golden, yellow, peachy hues
+- **Cool**: Pink, red, blue hues  
+- **Neutral**: Balanced undertones, flexible color choices
 
-## 🛠️ Technical Architecture
-
-### Backend Components
-
-- **NiceGUI**: Modern Python web framework for reactive UIs
-- **OpenCV**: Computer vision and image processing
-- **scikit-learn**: Machine learning for color clustering
-- **PIL/Pillow**: Image manipulation and enhancement
-- **NumPy/SciPy**: Numerical computations and color space transformations
-
-### Project Structure
-
-```
-color-harmony/
-├── main.py                 # Application entry point
-├── app/
-│   ├── main.py            # Main UI and page definitions
-│   ├── config.py          # Application configuration
-│   ├── components/        # Reusable UI components
-│   └── services/          # Business logic services
-├── core/                  # Core utilities and helpers
-├── static/               # Static assets (CSS, images)
-├── requirements.txt      # Python dependencies
-├── dockerfile           # Container configuration
-└── fly.toml            # Deployment configuration
-```
-
-## 🎛️ Configuration
-
-### Environment Variables
-
-Create a `.env` file to customize settings:
-
-```env
-PORT=8000
-HOST=0.0.0.0
-DEBUG=False
-UPLOAD_DIR=static/uploads
-MAX_FILE_SIZE=10485760
-ALLOWED_EXTENSIONS=jpg,jpeg,png,webp
-```
-
-### Image Processing Settings
-
-- **Max Image Size**: 1024x1024 pixels (configurable)
-- **Supported Formats**: JPG, JPEG, PNG, WebP
-- **Max File Size**: 10MB (configurable)
-- **Processing Timeout**: 30 seconds
+### **Color Harmony Principles**
+- **Complementary Colors**: Opposite colors on the color wheel
+- **Analogous Colors**: Adjacent colors that blend harmoniously
+- **Triadic Colors**: Three evenly spaced colors
+- **Seasonal Palettes**: Colors that complement natural coloring
 
 ## 🔒 Security Features
 
-- **File Validation**: Strict image format checking
-- **Size Limits**: Prevents oversized uploads
-- **Input Sanitization**: Safe filename handling
-- **Error Handling**: Graceful failure management
-- **CORS Protection**: Secure cross-origin requests
+- **File Validation**: Strict file type and size checking
+- **Input Sanitization**: All user inputs are validated
+- **Secure Upload**: Safe file handling and storage
+- **Error Handling**: Graceful degradation and user feedback
+- **Non-Root Container**: Security-hardened Docker deployment
 
 ## 🚀 Performance Optimizations
 
 - **Async Processing**: Non-blocking image operations
-- **Image Resizing**: Automatic optimization for large images
-- **Efficient Algorithms**: Optimized color analysis pipelines
-- **Memory Management**: Proper cleanup of image resources
-- **Caching**: Smart caching of processed results
-
-## 🎨 UI/UX Features
-
-- **Modern Design**: Clean, professional interface
-- **Responsive Layout**: Mobile-first design approach
-- **Interactive Elements**: Smooth animations and transitions
-- **Accessibility**: WCAG compliance and keyboard navigation
-- **Dark Mode Support**: Automatic theme detection
-- **Loading States**: Clear feedback during processing
-
-## 🧪 Testing
-
-Run the test suite:
-
-```bash
-python -m pytest tests/
-```
-
-## 📊 API Endpoints
-
-- `GET /` - Main application interface
-- `GET /health` - Health check endpoint
-- `POST /upload` - Image upload handling (internal)
+- **Memory Efficient**: Optimized image handling and cleanup
+- **Fast Algorithms**: Optimized computer vision algorithms
+- **Lazy Loading**: Components load only when needed
+- **Caching**: Efficient resource management
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests for new functionality
+4. Add tests if applicable
 5. Submit a pull request
 
-## 📝 License
+## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🙏 Acknowledgments
 
-- Color theory research from fashion and beauty industry experts
-- Computer vision techniques from academic research
-- UI/UX inspiration from leading beauty and fashion applications
-
-## 📞 Support
-
-For support, feature requests, or bug reports, please open an issue on GitHub.
+- OpenCV community for computer vision tools
+- NiceGUI team for the excellent Python web framework
+- Color theory research and professional styling principles
+- Beauty and fashion industry color analysis standards
 
 ---
 
-**Color Harmony** - Discover your perfect colors with AI-powered analysis! 🎨✨
+**Built with ❤️ using Python and modern web technologies**
