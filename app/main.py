@@ -1,32 +1,39 @@
-from nicegui import ui, app
+import asyncio
+import os
+import uuid
+from typing import Optional, Dict, Any
+from nicegui import ui, app, events
+import numpy as np
+
+from app.config import settings
 from app.components.image_upload import ImageUploadComponent
-from app.components.skin_analysis import SkinAnalysisComponent
+from app.components.skin_tone_analysis import SkinToneAnalysisComponent
 from app.components.color_recommendations import ColorRecommendationsComponent
 from app.components.skin_tone_adjuster import SkinToneAdjusterComponent
-from app.services.image_service import ImageService
 from app.services.color_service import ColorService
-import asyncio
+from app.services.image_service import ImageService
 
 # Initialize services
-image_service = ImageService()
 color_service = ColorService()
+image_service = ImageService()
 
 # Global state for the application
 class AppState:
     def __init__(self):
-        self.current_image = None
-        self.original_image = None
-        self.skin_tone_data = None
-        self.color_recommendations = None
-        self.processing = False
+        self.current_image: Optional[np.ndarray] = None
+        self.original_image: Optional[np.ndarray] = None
+        self.analysis_results: Optional[Dict[str, Any]] = None
+        self.color_recommendations: Optional[Dict[str, Any]] = None
+        self.uploaded_filename: Optional[str] = None
+        self.processing: bool = False
 
 app_state = AppState()
 
 @ui.page('/')
 async def main_page():
-    """Main application page with color analysis functionality."""
+    """Main application page."""
     
-    # Add custom CSS for beautiful styling
+    # Custom CSS for the application
     ui.add_head_html('''
     <style>
         .main-container {
@@ -35,219 +42,195 @@ async def main_page():
             padding: 20px;
         }
         
-        .app-header {
+        .content-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+        
+        .header-title {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2.5rem;
+            font-weight: bold;
             text-align: center;
-            color: white;
+            margin-bottom: 10px;
+        }
+        
+        .header-subtitle {
+            color: #666;
+            text-align: center;
+            font-size: 1.1rem;
             margin-bottom: 30px;
         }
         
-        .app-title {
-            font-size: 3rem;
-            font-weight: 700;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-        
-        .app-subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            font-weight: 300;
-        }
-        
-        .content-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
-            margin-bottom: 20px;
+        .section-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.05);
         }
         
         .section-title {
-            font-size: 1.5rem;
+            color: #333;
+            font-size: 1.4rem;
             font-weight: 600;
-            color: #4a5568;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
         
-        .processing-overlay {
+        .loading-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0, 0, 0, 0.7);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 1000;
-            color: white;
-            font-size: 1.2rem;
         }
         
-        .color-swatch {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            border: 3px solid white;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        
-        .color-swatch:hover {
-            transform: scale(1.1);
-        }
-        
-        .skin-tone-preview {
+        .loading-content {
+            background: white;
+            padding: 30px;
             border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
         
-        .recommendation-card {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            border-radius: 15px;
-            padding: 20px;
+        .error-message {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
             margin: 10px 0;
         }
         
-        .cool-tone-card {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        }
-        
-        .warm-tone-card {
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-        }
-        
-        .neutral-tone-card {
-            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-            color: #4a5568;
+        .success-message {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
         }
     </style>
     ''')
     
-    with ui.column().classes('main-container w-full'):
-        # Header
-        with ui.column().classes('app-header'):
-            ui.label('🎨 Color Harmony').classes('app-title')
-            ui.label('AI-Powered Skin Tone & Color Analysis').classes('app-subtitle')
-        
-        # Main content area
-        with ui.row().classes('w-full gap-6 justify-center'):
-            # Left column - Image upload and processing
-            with ui.column().classes('w-full max-w-md'):
-                with ui.card().classes('content-card'):
-                    ui.label('📸 Upload Your Photo').classes('section-title')
-                    
-                    # Image upload component
-                    upload_component = ImageUploadComponent(
-                        on_upload=handle_image_upload,
-                        max_size=10*1024*1024
-                    )
-                    
-                    # Current image display
-                    image_display = ui.image().classes('w-full skin-tone-preview').style('display: none;')
-                    
-                    # Skin tone adjuster
-                    adjuster_component = SkinToneAdjusterComponent(
-                        on_adjust=handle_skin_tone_adjustment,
-                        visible=False
-                    )
-            
-            # Right column - Analysis results
-            with ui.column().classes('w-full max-w-md'):
-                # Skin analysis results
-                analysis_component = SkinAnalysisComponent(visible=False)
-                
-                # Color recommendations
-                recommendations_component = ColorRecommendationsComponent(visible=False)
-        
-        # Processing overlay
-        processing_overlay = ui.element('div').classes('processing-overlay').style('display: none;')
-        with processing_overlay:
-            with ui.column().classes('items-center gap-4'):
-                ui.spinner(size='lg')
-                ui.label('Analyzing your skin tone and generating color recommendations...')
-
-async def handle_image_upload(file_path: str):
-    """Handle uploaded image and trigger analysis."""
-    try:
-        app_state.processing = True
-        show_processing_overlay()
-        
-        # Process the uploaded image
-        app_state.original_image = await image_service.load_image(file_path)
-        app_state.current_image = app_state.original_image.copy()
-        
-        # Perform skin tone analysis
-        app_state.skin_tone_data = await color_service.analyze_skin_tone(app_state.current_image)
-        
-        # Generate color recommendations
-        app_state.color_recommendations = await color_service.get_color_recommendations(
-            app_state.skin_tone_data
-        )
-        
-        # Update UI components
-        await update_ui_after_analysis()
-        
-    except Exception as e:
-        ui.notify(f'Error processing image: {str(e)}', type='negative')
-    finally:
-        app_state.processing = False
-        hide_processing_overlay()
-
-async def handle_skin_tone_adjustment(adjustment_params: dict):
-    """Handle skin tone adjustment parameters."""
-    if app_state.original_image is None:
-        return
+    # Loading overlay
+    loading_overlay = ui.element('div').classes('loading-overlay').style('display: none;')
+    with loading_overlay:
+        with ui.element('div').classes('loading-content'):
+            ui.spinner(size='lg')
+            ui.label('Analyzing your image...').classes('text-lg mt-4')
     
-    try:
-        app_state.processing = True
-        show_processing_overlay()
-        
-        # Apply skin tone adjustments
-        app_state.current_image = await image_service.adjust_skin_tone(
-            app_state.original_image,
-            adjustment_params
-        )
-        
-        # Re-analyze with adjusted image
-        app_state.skin_tone_data = await color_service.analyze_skin_tone(app_state.current_image)
-        app_state.color_recommendations = await color_service.get_color_recommendations(
-            app_state.skin_tone_data
-        )
-        
-        # Update UI
-        await update_ui_after_analysis()
-        
-    except Exception as e:
-        ui.notify(f'Error adjusting skin tone: {str(e)}', type='negative')
-    finally:
-        app_state.processing = False
-        hide_processing_overlay()
-
-async def update_ui_after_analysis():
-    """Update all UI components after image analysis."""
-    # This would update the reactive components
-    # Implementation depends on the specific component architecture
-    pass
-
-def show_processing_overlay():
-    """Show the processing overlay."""
-    # Implementation for showing overlay
-    pass
-
-def hide_processing_overlay():
-    """Hide the processing overlay."""
-    # Implementation for hiding overlay
-    pass
+    # Main container
+    with ui.element('div').classes('main-container'):
+        with ui.element('div').classes('content-card'):
+            # Header
+            ui.html('<h1 class="header-title">🎨 Color Harmony</h1>')
+            ui.html('<p class="header-subtitle">Discover your perfect colors with AI-powered skin tone analysis</p>')
+            
+            # Image Upload Section
+            with ui.element('div').classes('section-card'):
+                ui.html('<h2 class="section-title">📸 Upload Your Photo</h2>')
+                upload_component = ImageUploadComponent(on_upload=handle_image_upload)
+            
+            # Analysis Results Section
+            analysis_container = ui.element('div').style('display: none;')
+            with analysis_container:
+                with ui.element('div').classes('section-card'):
+                    ui.html('<h2 class="section-title">🔍 Skin Tone Analysis</h2>')
+                    analysis_component = SkinToneAnalysisComponent()
+                
+                with ui.element('div').classes('section-card'):
+                    ui.html('<h2 class="section-title">🎨 Color Recommendations</h2>')
+                    recommendations_component = ColorRecommendationsComponent()
+                
+                with ui.element('div').classes('section-card'):
+                    ui.html('<h2 class="section-title">🎛️ Adjust Skin Tone</h2>')
+                    adjuster_component = SkinToneAdjusterComponent(on_adjust=handle_skin_tone_adjustment)
+    
+    async def handle_image_upload(file_path: str, filename: str):
+        """Handle image upload and analysis."""
+        try:
+            # Show loading overlay
+            loading_overlay.style('display: flex;')
+            app_state.processing = True
+            
+            # Load and process image
+            app_state.original_image = await image_service.load_image(file_path)
+            app_state.current_image = app_state.original_image.copy()
+            app_state.uploaded_filename = filename
+            
+            # Perform skin tone analysis
+            app_state.analysis_results = await color_service.analyze_skin_tone(app_state.current_image)
+            
+            # Get color recommendations
+            app_state.color_recommendations = await color_service.get_color_recommendations(app_state.analysis_results)
+            
+            # Update UI components
+            await analysis_component.update_analysis(app_state.analysis_results, app_state.current_image)
+            await recommendations_component.update_recommendations(app_state.color_recommendations)
+            await adjuster_component.update_image(app_state.current_image)
+            
+            # Show analysis results
+            analysis_container.style('display: block;')
+            
+            # Hide loading overlay
+            loading_overlay.style('display: none;')
+            app_state.processing = False
+            
+            ui.notify('✅ Analysis complete! Scroll down to see your results.', type='positive')
+            
+        except Exception as e:
+            loading_overlay.style('display: none;')
+            app_state.processing = False
+            ui.notify(f'❌ Error analyzing image: {str(e)}', type='negative')
+            print(f"Error in image analysis: {e}")
+    
+    async def handle_skin_tone_adjustment(adjustments: Dict[str, Any]):
+        """Handle skin tone adjustments."""
+        try:
+            if app_state.original_image is None:
+                return
+            
+            # Apply adjustments to original image
+            app_state.current_image = await image_service.adjust_skin_tone(
+                app_state.original_image, adjustments
+            )
+            
+            # Re-analyze with adjusted image
+            app_state.analysis_results = await color_service.analyze_skin_tone(app_state.current_image)
+            app_state.color_recommendations = await color_service.get_color_recommendations(app_state.analysis_results)
+            
+            # Update UI components
+            await analysis_component.update_analysis(app_state.analysis_results, app_state.current_image)
+            await recommendations_component.update_recommendations(app_state.color_recommendations)
+            
+            ui.notify('🎨 Skin tone adjusted successfully!', type='positive')
+            
+        except Exception as e:
+            ui.notify(f'❌ Error adjusting skin tone: {str(e)}', type='negative')
+            print(f"Error in skin tone adjustment: {e}")
 
 @ui.page('/health')
 async def health_check():
-    """Health check endpoint for deployment monitoring."""
-    return {'status': 'healthy', 'service': 'color-harmony-api'}
+    """Health check endpoint for deployment."""
+    return {'status': 'healthy', 'service': 'Color Harmony API'}
+
+# Error handling for the application
+app.on_exception(lambda e: ui.notify(f'Application error: {str(e)}', type='negative'))
