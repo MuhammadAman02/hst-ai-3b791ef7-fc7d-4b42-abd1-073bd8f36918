@@ -1,206 +1,153 @@
+from typing import Dict, Any, List
 from nicegui import ui
-from typing import Dict, List, Any
 
 class ColorRecommendationsComponent:
-    """Component for displaying personalized color recommendations."""
+    """Component for displaying color recommendations."""
     
-    def __init__(self, visible: bool = False):
-        self.visible = visible
+    def __init__(self):
         self.container = None
-        self.recommendations = None
         self.create_component()
     
     def create_component(self):
-        """Create the color recommendations display component."""
-        self.container = ui.card().classes('content-card w-full')
+        """Create the color recommendations UI component."""
+        self.container = ui.element('div').classes('w-full')
         
         with self.container:
-            ui.label('🎨 Your Perfect Colors').classes('section-title')
-            
-            # Recommendations container
-            self.recommendations_container = ui.column().classes('w-full gap-6')
-            
-            if not self.visible:
-                self.container.style('display: none;')
+            # Initial empty state
+            with ui.element('div').classes('text-center p-8 text-gray-500'):
+                ui.icon('palette').classes('text-4xl mb-4')
+                ui.label('Color recommendations will appear here after analysis').classes('text-lg')
     
-    def update_recommendations(self, recommendations: Dict[str, Any]):
-        """Update the component with new color recommendations."""
-        self.recommendations = recommendations
-        self._render_recommendations()
-        self.show()
+    async def update_recommendations(self, recommendations: Dict[str, Any]):
+        """Update the component with color recommendations."""
+        try:
+            # Clear existing content
+            self.container.clear()
+            
+            with self.container:
+                # Best colors section
+                if recommendations.get("best_colors"):
+                    await self._create_color_section(
+                        "✨ Colors That Enhance Your Beauty",
+                        recommendations["best_colors"],
+                        "These colors will make your skin glow and bring out your natural radiance.",
+                        "bg-green-50",
+                        "text-green-700"
+                    )
+                
+                # Seasonal palette
+                if recommendations.get("seasonal_palette"):
+                    await self._create_seasonal_section(recommendations["seasonal_palette"])
+                
+                # Outfit suggestions
+                if recommendations.get("outfit_suggestions"):
+                    await self._create_outfit_section(recommendations["outfit_suggestions"])
+                
+                # Colors to avoid (if any)
+                if recommendations.get("avoid_colors"):
+                    await self._create_color_section(
+                        "⚠️ Colors to Use Sparingly",
+                        recommendations["avoid_colors"],
+                        "These colors may wash you out. Use them as small accents if desired.",
+                        "bg-yellow-50",
+                        "text-yellow-700"
+                    )
+                
+        except Exception as e:
+            self.container.clear()
+            with self.container:
+                ui.label(f'Error displaying recommendations: {str(e)}').classes('text-red-500')
+            print(f"Error updating recommendations component: {e}")
     
-    def _render_recommendations(self):
-        """Render the color recommendations."""
-        if not self.recommendations:
-            return
-        
-        # Clear previous recommendations
-        self.recommendations_container.clear()
-        
-        with self.recommendations_container:
-            # Best colors section
-            self._render_color_category(
-                'Best Colors for You',
-                self.recommendations.get('best_colors', []),
-                'recommendation-card'
-            )
-            
-            # Colors to avoid section
-            self._render_color_category(
-                'Colors to Use Sparingly',
-                self.recommendations.get('avoid_colors', []),
-                'recommendation-card',
-                is_avoid=True
-            )
-            
-            # Seasonal palette
-            if 'seasonal_palette' in self.recommendations:
-                self._render_seasonal_palette()
-            
-            # Outfit suggestions
-            if 'outfit_suggestions' in self.recommendations:
-                self._render_outfit_suggestions()
-    
-    def _render_color_category(self, title: str, colors: List[Dict], card_class: str, is_avoid: bool = False):
-        """Render a category of color recommendations."""
-        if not colors:
-            return
-        
-        icon = '❌' if is_avoid else '✨'
-        
-        with ui.card().classes(f'{card_class} w-full'):
-            ui.label(f'{icon} {title}').classes('text-lg font-semibold mb-4')
+    async def _create_color_section(self, title: str, colors: List[Dict], description: str, bg_class: str, text_class: str):
+        """Create a section for displaying colors."""
+        with ui.card().classes(f'w-full p-6 mb-6 {bg_class}'):
+            ui.label(title).classes(f'text-xl font-bold {text_class} mb-3')
+            ui.label(description).classes(f'{text_class} mb-4')
             
             # Color grid
-            with ui.grid(columns=4).classes('w-full gap-3'):
-                for color_info in colors:
-                    self._render_color_swatch(color_info, is_avoid)
+            with ui.grid(columns=4).classes('gap-4 mb-4'):
+                for color in colors[:12]:  # Limit to 12 colors
+                    await self._create_color_card(color)
     
-    def _render_color_swatch(self, color_info: Dict, is_avoid: bool = False):
-        """Render an individual color swatch with information."""
-        color_hex = color_info.get('hex', '#000000')
-        color_name = color_info.get('name', 'Unknown')
-        confidence = color_info.get('confidence', 0.0)
-        
-        with ui.column().classes('items-center gap-2'):
+    async def _create_color_card(self, color: Dict[str, Any]):
+        """Create a card for a single color."""
+        with ui.card().classes('p-3 hover:shadow-lg transition-shadow cursor-pointer'):
             # Color swatch
-            swatch_style = (
-                f'width: 60px; height: 60px; background-color: {color_hex}; '
-                'border-radius: 12px; border: 3px solid white; '
-                'box-shadow: 0 4px 8px rgba(0,0,0,0.2); cursor: pointer; '
-                'transition: transform 0.2s;'
+            ui.element('div').style(
+                f'width: 100%; height: 60px; background-color: {color["hex"]}; '
+                f'border-radius: 8px; border: 2px solid #ddd; margin-bottom: 8px;'
             )
             
-            if is_avoid:
-                swatch_style += 'opacity: 0.6; filter: grayscale(20%);'
-            
-            color_swatch = ui.element('div').style(swatch_style)
-            color_swatch.on('click', lambda c=color_info: self._show_color_details(c))
-            
             # Color information
-            ui.label(color_name).classes('text-xs font-medium text-center max-w-16 truncate')
+            ui.label(color.get("name", "Unknown")).classes('font-medium text-sm text-center')
+            ui.label(color["hex"]).classes('text-xs text-gray-500 text-center font-mono')
             
-            if confidence > 0:
-                confidence_color = 'text-green-600' if confidence > 0.7 else 'text-yellow-600'
-                ui.label(f'{confidence:.0%}').classes(f'text-xs {confidence_color}')
+            # Confidence indicator
+            confidence = color.get("confidence", 0.5)
+            confidence_percent = int(confidence * 100)
+            
+            with ui.row().classes('items-center justify-center gap-1 mt-2'):
+                ui.icon('star').classes('text-xs text-yellow-500')
+                ui.label(f'{confidence_percent}%').classes('text-xs text-gray-600')
+            
+            # Usage suggestion
+            if color.get("usage"):
+                ui.label(color["usage"]).classes('text-xs text-gray-500 text-center mt-1')
     
-    def _render_seasonal_palette(self):
-        """Render seasonal color palette recommendations."""
-        seasonal_data = self.recommendations.get('seasonal_palette', {})
-        season = seasonal_data.get('season', 'Unknown')
-        colors = seasonal_data.get('colors', [])
+    async def _create_seasonal_section(self, seasonal_palette: Dict[str, Any]):
+        """Create the seasonal palette section."""
+        season = seasonal_palette.get("season", "Summer")
+        colors = seasonal_palette.get("colors", [])
+        description = seasonal_palette.get("description", "")
         
-        if not colors:
-            return
-        
-        with ui.card().classes('w-full p-6 mt-4'):
-            ui.label(f'🍂 Your Seasonal Palette: {season}').classes('text-lg font-semibold mb-4')
-            
-            # Season description
-            description = self._get_season_description(season)
-            ui.label(description).classes('text-sm text-gray-600 mb-4')
+        with ui.card().classes('w-full p-6 mb-6 bg-purple-50'):
+            ui.label(f'🌸 Your {season} Palette').classes('text-xl font-bold text-purple-700 mb-3')
+            ui.label(description).classes('text-purple-700 mb-4')
             
             # Seasonal colors
-            with ui.grid(columns=6).classes('w-full gap-2'):
-                for color in colors:
-                    ui.element('div').style(
-                        f'width: 40px; height: 40px; background-color: {color}; '
-                        'border-radius: 8px; border: 2px solid white; '
-                        'box-shadow: 0 2px 4px rgba(0,0,0,0.1);'
-                    )
+            with ui.grid(columns=5).classes('gap-3'):
+                for color_hex in colors:
+                    with ui.element('div').classes('text-center'):
+                        ui.element('div').style(
+                            f'width: 50px; height: 50px; background-color: {color_hex}; '
+                            f'border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); '
+                            f'margin: 0 auto 5px auto;'
+                        )
+                        ui.label(color_hex).classes('text-xs text-gray-600 font-mono')
     
-    def _render_outfit_suggestions(self):
-        """Render outfit color combination suggestions."""
-        suggestions = self.recommendations.get('outfit_suggestions', [])
-        
-        if not suggestions:
+    async def _create_outfit_section(self, outfit_suggestions: List[Dict[str, Any]]):
+        """Create the outfit suggestions section."""
+        if not outfit_suggestions:
             return
         
-        with ui.card().classes('w-full p-6 mt-4'):
-            ui.label('👗 Outfit Color Combinations').classes('text-lg font-semibold mb-4')
+        with ui.card().classes('w-full p-6 mb-6 bg-blue-50'):
+            ui.label('👗 Outfit Color Combinations').classes('text-xl font-bold text-blue-700 mb-3')
+            ui.label('Try these harmonious color combinations for different occasions.').classes('text-blue-700 mb-4')
             
-            for i, suggestion in enumerate(suggestions[:3]):  # Show top 3 suggestions
-                with ui.row().classes('w-full items-center gap-4 p-3 bg-gray-50 rounded-lg mb-3'):
-                    # Color combination preview
-                    with ui.row().classes('gap-1'):
-                        for color in suggestion.get('colors', []):
-                            ui.element('div').style(
-                                f'width: 30px; height: 30px; background-color: {color}; '
-                                'border-radius: 6px; border: 1px solid white;'
-                            )
-                    
-                    # Suggestion details
-                    with ui.column().classes('flex-1'):
-                        ui.label(suggestion.get('name', f'Combination {i+1}')).classes('font-medium')
-                        ui.label(suggestion.get('description', 'Great color harmony')).classes('text-sm text-gray-600')
+            with ui.grid(columns=1).classes('gap-4'):
+                for outfit in outfit_suggestions:
+                    await self._create_outfit_card(outfit)
     
-    def _get_season_description(self, season: str) -> str:
-        """Get description for seasonal color palette."""
-        descriptions = {
-            'Spring': 'Warm, clear, and bright colors that reflect the freshness of spring',
-            'Summer': 'Cool, soft, and muted colors with blue undertones',
-            'Autumn': 'Warm, rich, and earthy colors with golden undertones',
-            'Winter': 'Cool, clear, and intense colors with blue undertones'
-        }
-        return descriptions.get(season, 'A beautiful palette of colors that complement your skin tone')
-    
-    def _show_color_details(self, color_info: Dict):
-        """Show detailed information about a selected color."""
-        color_name = color_info.get('name', 'Unknown')
-        color_hex = color_info.get('hex', '#000000')
-        
-        # Create a dialog with color details
-        with ui.dialog() as dialog, ui.card().classes('w-80'):
-            with ui.column().classes('items-center gap-4 p-4'):
-                # Large color swatch
-                ui.element('div').style(
-                    f'width: 100px; height: 100px; background-color: {color_hex}; '
-                    'border-radius: 20px; border: 4px solid white; '
-                    'box-shadow: 0 8px 16px rgba(0,0,0,0.2);'
-                )
+    async def _create_outfit_card(self, outfit: Dict[str, Any]):
+        """Create a card for an outfit suggestion."""
+        with ui.card().classes('p-4 border border-blue-200'):
+            # Outfit name and occasion
+            with ui.row().classes('items-center justify-between mb-3'):
+                ui.label(outfit.get("name", "Outfit Combination")).classes('font-semibold text-lg')
+                ui.chip(outfit.get("occasion", "Casual")).classes('bg-blue-100 text-blue-700')
+            
+            # Color combination
+            with ui.row().classes('items-center gap-3 mb-3'):
+                for color_hex in outfit.get("colors", []):
+                    ui.element('div').style(
+                        f'width: 40px; height: 40px; background-color: {color_hex}; '
+                        f'border-radius: 8px; border: 2px solid #ddd;'
+                    )
                 
-                ui.label(color_name).classes('text-xl font-semibold')
-                ui.label(color_hex.upper()).classes('text-lg font-mono text-gray-600')
-                
-                # Usage suggestions
-                usage = color_info.get('usage', 'Perfect for various styling options')
-                ui.label(usage).classes('text-sm text-gray-600 text-center')
-                
-                ui.button('Close', on_click=dialog.close).classes('mt-4')
-        
-        dialog.open()
-    
-    def show(self):
-        """Show the recommendations component."""
-        self.container.style('display: block;')
-        self.visible = True
-    
-    def hide(self):
-        """Hide the recommendations component."""
-        self.container.style('display: none;')
-        self.visible = False
-    
-    def clear(self):
-        """Clear the recommendations."""
-        self.recommendations_container.clear()
-        self.recommendations = None
+                ui.icon('arrow_forward').classes('text-gray-400')
+                ui.label('Perfect Harmony').classes('text-sm text-gray-600 italic')
+            
+            # Description
+            if outfit.get("description"):
+                ui.label(outfit["description"]).classes('text-gray-700 text-sm')
