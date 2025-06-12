@@ -1,50 +1,59 @@
-from nicegui import ui, events
-from typing import Callable, Optional
 import os
 import uuid
+from typing import Callable, Optional
+from nicegui import ui, events
 from app.config import settings
 
 class ImageUploadComponent:
-    """Component for handling image uploads with drag-and-drop support."""
+    """Component for handling image uploads with drag-and-drop functionality."""
     
-    def __init__(self, on_upload: Callable[[str], None], max_size: int = 10*1024*1024):
+    def __init__(self, on_upload: Callable[[str, str], None]):
         self.on_upload = on_upload
-        self.max_size = max_size
         self.upload_area = None
         self.file_info = None
         self.create_component()
     
     def create_component(self):
         """Create the image upload UI component."""
-        with ui.column().classes('w-full gap-4'):
-            # Upload area
-            with ui.card().classes('w-full p-8 border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer'):
-                with ui.column().classes('items-center gap-4'):
-                    ui.icon('cloud_upload', size='3rem').classes('text-gray-400')
-                    ui.label('Drag & drop your photo here').classes('text-lg font-medium text-gray-600')
-                    ui.label('or click to browse').classes('text-sm text-gray-500')
-                    ui.label(f'Max file size: {self.max_size // (1024*1024)}MB').classes('text-xs text-gray-400')
-                    
-                    # Hidden file input
-                    self.file_input = ui.upload(
-                        on_upload=self._handle_upload,
-                        max_file_size=self.max_size,
-                        max_files=1
-                    ).classes('hidden').props('accept="image/*"')
+        
+        # Upload area container
+        with ui.element('div').classes('w-full'):
+            # File upload with drag and drop
+            upload = ui.upload(
+                on_upload=self._handle_upload,
+                max_file_size=settings.max_file_size,
+                multiple=False
+            ).classes('w-full')
             
-            # File info display
-            self.file_info = ui.row().classes('w-full items-center gap-2').style('display: none;')
+            # Custom upload area styling
+            upload.props('accept="image/*"')
+            upload.props('color="primary"')
+            upload.props('flat')
+            upload.props('bordered')
+            
+            # Upload area with custom styling
+            with upload:
+                with ui.element('div').classes('w-full p-8 text-center border-2 border-dashed border-gray-300 rounded-lg hover:border-primary transition-colors'):
+                    ui.icon('cloud_upload').classes('text-6xl text-gray-400 mb-4')
+                    ui.label('Drag and drop your photo here').classes('text-xl font-medium text-gray-600 mb-2')
+                    ui.label('or click to browse').classes('text-gray-500')
+                    ui.label('Supported formats: JPG, PNG, WebP (max 10MB)').classes('text-sm text-gray-400 mt-2')
+            
+            # File information display
+            self.file_info = ui.element('div').classes('mt-4').style('display: none;')
             with self.file_info:
-                ui.icon('image', size='sm').classes('text-green-500')
-                self.file_name_label = ui.label('').classes('text-sm font-medium')
-                self.file_size_label = ui.label('').classes('text-xs text-gray-500')
+                with ui.row().classes('items-center gap-4 p-4 bg-gray-50 rounded-lg'):
+                    ui.icon('image').classes('text-2xl text-primary')
+                    self.file_name_label = ui.label('').classes('font-medium')
+                    self.file_size_label = ui.label('').classes('text-sm text-gray-500')
+                    ui.button('Remove', on_click=self._remove_file).props('flat color="negative" size="sm"')
     
     async def _handle_upload(self, e: events.UploadEventArguments):
-        """Handle the file upload event."""
+        """Handle file upload event."""
         try:
             # Validate file type
-            if not self._is_valid_image(e.name):
-                ui.notify('Please upload a valid image file (JPG, PNG, WebP)', type='negative')
+            if not self._is_valid_file_type(e.name):
+                ui.notify(f'❌ Invalid file type. Please upload an image file.', type='negative')
                 return
             
             # Generate unique filename
@@ -57,41 +66,34 @@ class ImageUploadComponent:
                 f.write(e.content.read())
             
             # Update file info display
-            self._show_file_info(e.name, len(e.content.read()))
+            self._update_file_info(e.name, len(e.content.read()))
             
-            # Trigger upload callback
-            await self.on_upload(file_path)
+            # Notify success
+            ui.notify(f'✅ Image uploaded successfully: {e.name}', type='positive')
             
-            ui.notify('Image uploaded successfully!', type='positive')
+            # Call the upload callback
+            await self.on_upload(file_path, e.name)
             
         except Exception as error:
-            ui.notify(f'Upload failed: {str(error)}', type='negative')
+            ui.notify(f'❌ Upload failed: {str(error)}', type='negative')
+            print(f"Upload error: {error}")
     
-    def _is_valid_image(self, filename: str) -> bool:
-        """Check if the uploaded file is a valid image."""
-        if not filename:
-            return False
-        
-        extension = os.path.splitext(filename)[1].lower().lstrip('.')
-        return extension in settings.allowed_extensions
+    def _is_valid_file_type(self, filename: str) -> bool:
+        """Check if the uploaded file has a valid extension."""
+        file_extension = os.path.splitext(filename)[1].lower()
+        return file_extension in settings.allowed_extensions
     
-    def _show_file_info(self, filename: str, file_size: int):
-        """Display information about the uploaded file."""
-        self.file_info.style('display: flex;')
+    def _update_file_info(self, filename: str, file_size: int):
+        """Update the file information display."""
         self.file_name_label.text = filename
-        
-        # Format file size
-        if file_size < 1024:
-            size_str = f"{file_size} B"
-        elif file_size < 1024 * 1024:
-            size_str = f"{file_size / 1024:.1f} KB"
-        else:
-            size_str = f"{file_size / (1024 * 1024):.1f} MB"
-        
-        self.file_size_label.text = f"({size_str})"
+        self.file_size_label.text = f'{file_size / 1024 / 1024:.1f} MB'
+        self.file_info.style('display: block;')
+    
+    def _remove_file(self):
+        """Remove the uploaded file and reset the component."""
+        self.file_info.style('display: none;')
+        ui.notify('File removed', type='info')
     
     def reset(self):
-        """Reset the upload component to initial state."""
+        """Reset the upload component."""
         self.file_info.style('display: none;')
-        self.file_name_label.text = ''
-        self.file_size_label.text = ''
